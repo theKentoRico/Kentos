@@ -1,0 +1,160 @@
+use volatile::Volatile;
+use spin::Mutex;
+use lazy_static::lazy_static;
+
+pub const VGA_WIDTH: usize = 80;
+pub const VGA_HEIGHT: usize = 25;
+
+#[repr(u8)]
+#[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+
+pub enum Colour
+{
+    Black = 0,
+    Blue,
+    Green,
+    Cyan,
+    Red,
+    Magenta,
+    Brown,
+    LightGray,
+    DarkGray,
+    LightBlue,
+    LightGreen,
+    LightCyan,
+    LightRed,
+    LightMagenta,
+    Yellow,
+    White
+}
+
+#[allow(dead_code)]
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ColourCode(u8);
+
+impl ColourCode
+{
+    pub fn New(fg /*foreground*/: Colour, bg /*background*/: Colour) -> ColourCode
+    {
+        ColourCode((bg as u8) << 4 | (fg as u8))
+    }
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ScreenChar
+{
+    pub asciiChar: u8,
+    pub colourCode: ColourCode
+}
+
+pub struct Buffer
+{
+    pub chars: [[Volatile<ScreenChar>; VGA_WIDTH]; VGA_HEIGHT]
+}
+
+pub struct Writer
+{
+    pub row: usize,
+    pub column: usize,
+    pub colourc: ColourCode,
+    pub buffer: &'static mut Buffer
+}
+
+impl Writer
+{
+    pub fn write_char(&mut self, byte: u8) -> ()
+    {
+        match byte
+        {
+            b'\n' => self.add_newline(),
+            byte =>
+            {
+                if self.column >= VGA_WIDTH
+                {
+                    self.add_newline();
+                }
+                let row = self.row;
+                let col = self.column;
+                self.buffer.chars[row][col].write
+                (
+                    ScreenChar
+                    {
+                        asciiChar: byte,
+                        colourCode: self.colourc
+                    }
+                );
+                self.column += 1;
+            }
+        }
+    }
+    pub fn add_newline(&mut self) -> ()
+    {
+        for i in 1..VGA_HEIGHT
+        {
+            for j in 0..VGA_WIDTH
+            {
+                let character = self.buffer.chars[i][j].read();
+                self.buffer.chars[i - 1][j].write(character);
+            }
+        }
+        self.clear_row(VGA_HEIGHT - 1);
+        self.column = 0;
+    }
+    pub fn write_str(&mut self, s: &str) -> ()
+    {
+        for byte in s.bytes()
+        {
+            match byte
+            {
+                0x20..=0x7e | b'\n' => { self.write_char(byte) }
+                _ => { self.write_char(0xfe) }
+            }
+        }
+    }
+    pub fn clear_row(&mut self, r: usize)
+    {
+        let BLANK: ScreenChar = ScreenChar
+        {
+            asciiChar: b' ',
+            colourCode: self.colourc
+        };
+        for col in 0..VGA_WIDTH 
+        {
+            self.buffer.chars[r][col].write(BLANK);
+        }
+
+    }
+}
+
+pub extern "C" fn k_puts(s: &str, fg: Colour, bg: Colour) -> ()
+{
+    let mut writer = Mutex::new(Writer 
+    {
+        row: VGA_HEIGHT - 1,
+        column: 0,
+        colourc: ColourCode::New(fg , bg),
+        buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
+    });
+    writer.lock().write_str(s)
+}
+
+impl core::fmt::Write for Writer
+{
+    fn write_str(&mut self, s: &str) -> core::fmt::Result
+    {
+        self.write_str(s);
+        Ok(())
+    }
+}
+
+lazy_static! {
+    pub static ref WRITER: Writer = Writer {
+        column: 0,
+        row: VGA_HEIGHT - 1,
+        colourc: ColourCode::New(Colour::Yellow, Colour::Black),
+        buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
+    };
+}
