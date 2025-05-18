@@ -5,3 +5,5 @@
 \[Da\] Added a README and version.md.
 
 \[Db\] Added LICENSE.
+
+\[Dc\] Added LICENSE.

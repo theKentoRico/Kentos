@@ -1,3 +1,5 @@
+use core::ops::{Deref, DerefMut};
+
 use volatile::Volatile;
 use spin::Mutex;
 use lazy_static::lazy_static;
@@ -36,7 +38,7 @@ pub struct ColourCode(u8);
 
 impl ColourCode
 {
-    pub fn New(fg /*foreground*/: Colour, bg /*background*/: Colour) -> ColourCode
+    pub fn new(fg /*foreground*/: Colour, bg /*background*/: Colour) -> ColourCode
     {
         ColourCode((bg as u8) << 4 | (fg as u8))
     }
@@ -109,6 +111,7 @@ impl Writer
         {
             match byte
             {
+                b'\r' => { self.column -= 1 }
                 0x20..=0x7e | b'\n' => { self.write_char(byte) }
                 _ => { self.write_char(0xfe) }
             }
@@ -135,7 +138,7 @@ pub extern "C" fn k_puts(s: &str, fg: Colour, bg: Colour) -> ()
     {
         row: VGA_HEIGHT - 1,
         column: 0,
-        colourc: ColourCode::New(fg , bg),
+        colourc: ColourCode::new(fg , bg),
         buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
     });
     writer.lock().write_str(s)
@@ -150,11 +153,47 @@ impl core::fmt::Write for Writer
     }
 }
 
-lazy_static! {
-    pub static ref WRITER: Writer = Writer {
+lazy_static! 
+{
+    pub static ref WRITER: Mutex<Writer> = Mutex::new(Writer
+    {
         column: 0,
         row: VGA_HEIGHT - 1,
-        colourc: ColourCode::New(Colour::Yellow, Colour::Black),
+        colourc: ColourCode::new(Colour::Yellow, Colour::Black),
         buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
-    };
+    });
+}
+
+
+lazy_static! 
+{
+    pub static ref ERROR_WRITER: Mutex<Writer> = Mutex::new(Writer
+    {
+        column: 0,
+        row: VGA_HEIGHT - 1,
+        colourc: ColourCode::new(Colour::LightRed, Colour::Black),
+        buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
+    });
+}
+
+lazy_static! 
+{
+    pub static ref SUCCESS_WRITER: Mutex<Writer> = Mutex::new(Writer
+    {
+        column: 0,
+        row: VGA_HEIGHT - 1,
+        colourc: ColourCode::new(Colour::LightGreen, Colour::Black),
+        buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
+    });
+}
+
+lazy_static! 
+{
+    pub static ref SHELL_WRITER: Mutex<Writer> = Mutex::new(Writer
+    {
+        column: 0,
+        row: VGA_HEIGHT - 1,
+        colourc: ColourCode::new(Colour::White, Colour::Black),
+        buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
+    });
 }
