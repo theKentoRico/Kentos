@@ -7,3 +7,9 @@
 \[Db\] Added LICENSE.
 
 \[Dc\] Added LICENSE.
+
+# Kentos 0.1.1
+
+\[main\] Added basic shell.
+
+\[Da\] Fixed changelog.
