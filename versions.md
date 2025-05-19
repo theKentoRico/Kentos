@@ -17,3 +17,5 @@
 # Kentos 0.1.2
 
 \[main\] Added more utility to shell and added docs.
+
+\[Da\] Fixed README.

@@ -19,4 +19,8 @@ Run
 
 # Using Kentos
 
-The Kentos docs are [here](https://www.github.com/blob/main/docs/reference.md).
+The Kentos docs are [here](https://github.com/theKentoRico/Kentos/blob/main/docs/reference.md).
+
+# License
+
+Kentos is licensed under the BSD-3-Clause license.
