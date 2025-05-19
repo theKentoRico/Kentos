@@ -45,12 +45,14 @@ fn panic(info: &PanicInfo) -> !
     unsafe
     {
         if !cfg!(debug_assertions)
-        {   
+        {
             intrinsics::abort();
         }
+        else 
+        {
+            loop {}
+        }
     }
-    #[cfg(debug_assertions)]
-    loop {}
 }
 #[unsafe(no_mangle)]
 fn k_start(boot_info: &'static BootInfo) -> !
@@ -71,7 +73,8 @@ fn k_start(boot_info: &'static BootInfo) -> !
     // }
     let mut input_str: [char; 4096] = ['\0'; 4096];
     let mut char_no_idx: u8 = 0;
-    loop 
+    write!(SHELL_WRITER.lock(), ">");
+    loop
     {
         x86_64::instructions::interrupts::disable();
         if LAST_KEY.lock().to_ascii_lowercase() != '\0'
@@ -83,19 +86,48 @@ fn k_start(boot_info: &'static BootInfo) -> !
                     ['g', 'r', 'e', 'e', 't', '\0', '\0', '\0', ..] => 
                     {
                         writeln!(SHELL_WRITER.lock(), "Hello.");
+                    },
+                    ['e', 'c', 'h', 'o', ' ', ..] => 
+                    {
+                        for i in 5..4095
+                        {
+                            if input_str[i] == '\0'
+                            {
+                                break;
+                            }
+                            write!(SHELL_WRITER.lock(), "{}", input_str[i]);
+                        }
+                        writeln!(SHELL_WRITER.lock());
+                    },
+                    ['r', 'e', 'b', 'o', 'o', 't', '\0', '\0', '\0', ..] =>
+                    {
+                        for _ in 1..VGA_HEIGHT
+                        {
+                            writeln!(SHELL_WRITER.lock());
+                        }
+                        k_start(boot_info);
                     }
+
                     ['\0', ..] => {},
                     _ =>
                     {
                         write!(ERROR_WRITER.lock(), "Unknown shell command, ");
-                        for i in input_str
+                        for i in 0..4095
                         {
-                            write!(ERROR_WRITER.lock(), "{}", i);
+                            if input_str[i] == '\0'
+                            {
+                                break;
+                            }
+                            write!(ERROR_WRITER.lock(), "{}", input_str[i]);
                         }
+                        writeln!(ERROR_WRITER.lock());
                     }
                 }
                 *(LAST_KEY.lock()) = '\0';
+                char_no_idx = 0;
                 input_str = ['\0'; 4096];
+                write!(SHELL_WRITER.lock(), ">");
+                continue;
             }
             input_str[char_no_idx as usize] = *(LAST_KEY.lock());
             char_no_idx += 1;
@@ -103,6 +135,7 @@ fn k_start(boot_info: &'static BootInfo) -> !
             continue;
         }
         x86_64::instructions::interrupts::enable();
+        x86_64::instructions::hlt();
     }
 }
 

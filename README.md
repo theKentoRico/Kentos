@@ -16,3 +16,7 @@ Kentos is a FOSS OS I'm working on.
 
 Run
 `cargo bootimage --target x86_64-thekentorico-kentos.json` and run `target/x86_64-thekentorico-kentos.json/debug/bootimage-kentos.bin` in your preferred VM or boot it in a real device.
+
+# Using Kentos
+
+The Kentos docs are [here](https://www.github.com/blob/main/docs/reference.md).
