@@ -20,6 +20,10 @@ They are:
 
 `rust is great`
 
-### 3. reboot
+### 3. reboot (doesn't work now)
 
 `reboot` takes no arguments and reboots the system by re-executing the `k_start` function from the beginning.
+
+### 4. clear
+
+`clear` clears the screen and takes 0 arguments.

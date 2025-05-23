@@ -48,8 +48,8 @@ impl ColourCode
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ScreenChar
 {
-    pub asciiChar: u8,
-    pub colourCode: ColourCode
+    pub ascii_char: u8,
+    pub colour_code: ColourCode
 }
 
 pub struct Buffer
@@ -71,6 +71,23 @@ impl Writer
     {
         match byte
         {
+            b'\x08' =>
+            {
+                if self.column == 0
+                {
+                    self.column = VGA_WIDTH - 1;
+                    self.row -= 1;
+                }
+                else 
+                {
+                    self.column -= 1;
+                }
+                self.buffer.chars[self.row][self.column].write
+                (
+                    ScreenChar { ascii_char: b' ', colour_code: self.colourc }
+                );
+                
+            }
             b'\n' => self.add_newline(),
             byte =>
             {
@@ -84,8 +101,8 @@ impl Writer
                 (
                     ScreenChar
                     {
-                        asciiChar: byte,
-                        colourCode: self.colourc
+                        ascii_char: byte,
+                        colour_code: self.colourc
                     }
                 );
                 self.column += 1;
@@ -111,8 +128,7 @@ impl Writer
         {
             match byte
             {
-                b'\r' => { self.column -= 1 }
-                0x20..=0x7e | b'\n' => { self.write_char(byte) }
+                0x20..=0x7e | b'\n' | b'\x08' => { self.write_char(byte) }
                 _ => { self.write_char(0xfe) }
             }
         }
@@ -121,8 +137,8 @@ impl Writer
     {
         let BLANK: ScreenChar = ScreenChar
         {
-            asciiChar: b' ',
-            colourCode: self.colourc
+            ascii_char: b' ',
+            colour_code: self.colourc
         };
         for col in 0..VGA_WIDTH 
         {

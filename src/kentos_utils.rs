@@ -1,4 +1,4 @@
-use crate::kentos_interrupts::*;
+use crate::{kentos_alloc::init_heap, kentos_interrupts::*};
 
 pub extern "C" fn init() -> ()
 {

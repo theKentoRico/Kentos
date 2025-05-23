@@ -6,7 +6,6 @@ use lazy_static::lazy_static;
 use pic8259::ChainedPics;
 use spin::*;
 use x86_64::instructions::port::Port;
-use pc_keyboard::{layouts, DecodedKey, HandleControl, Keyboard, ScancodeSet1};
 use core::cell::RefCell;
 
 pub const PIC_1_OFFSET: u8 = 32;
@@ -17,9 +16,10 @@ pub static PICS: spin::Mutex<ChainedPics> = spin::Mutex::new(unsafe { ChainedPic
 #[macro_export]
 macro_rules! scancode_to_ascii 
 {
-    ($code:expr) => {
-        match $code {
-            
+    ($code:expr) => 
+    {
+        match $code 
+        {
             0x02 => Some('1'),
             0x03 => Some('2'),
             0x04 => Some('3'),
@@ -30,6 +30,8 @@ macro_rules! scancode_to_ascii
             0x09 => Some('8'),
             0x0A => Some('9'),
             0x0B => Some('0'),
+            0x0C => Some('-'),
+            0x0D => Some('='),
             0x10 => Some('q'),
             0x11 => Some('w'),
             0x12 => Some('e'),

@@ -19,3 +19,7 @@
 \[main\] Added more utility to shell and added docs.
 
 \[Da\] Fixed README.
+
+# Kentos 0.2.1
+
+\[main\] Added heap allocation (which makes my life easier) and 'clear'.

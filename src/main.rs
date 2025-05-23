@@ -16,21 +16,29 @@
 #![no_std]
 #![no_main]
 
+extern crate alloc;
+
+use alloc::boxed::Box;
+use alloc::string::String;
+use alloc::vec::{self, *};
+use alloc::*;
 use core::fmt::{Write, Display};
 use core::{intrinsics, str};
 use core::panic::PanicInfo;
 use lazy_static::*;
 use crate::kentos_interrupts::LAST_KEY;
+use crate::kentos_alloc::*;
 
 mod kentos_memory;
 mod kentos_stdio;
 mod kentos_interrupts;
 mod kentos_gdt; // we will use this later
 mod kentos_utils;
+mod kentos_alloc;
 
 use crate::kentos_interrupts::init_idt;
 use crate::kentos_stdio::*;
-use kentos_memory::active_level_4_page_table;
+use kentos_memory::{active_level_4_page_table, BootInfoFrameAllocator};
 use kentos_stdio::SHELL_WRITER;
 use kentos_utils::*;
 use bootloader::*;
@@ -59,19 +67,31 @@ fn k_start(boot_info: &'static BootInfo) -> !
 {
     init();
     x86_64::instructions::interrupts::enable();
+
     writeln!(WRITER.lock(), "Booting up.");
+
+    let phys_mem = VirtAddr::new(boot_info.physical_memory_offset);
+    let mut mapper = unsafe { kentos_memory::init(phys_mem) };
+    let mut frame_alloc = unsafe { BootInfoFrameAllocator::init(&boot_info.memory_map) };
+    match init_heap(&mut mapper, &mut frame_alloc)
+    {
+        Ok(v) =>
+        {
+            writeln!(WRITER.lock(), "Heap init successful");
+        }
+
+        Err(v) =>
+        {
+            writeln!(WRITER.lock(), "Heap init unsuccessful {:#?}", v);
+        }
+    }
     unsafe 
     { 
         #[cfg(debug_assertions)]
         run_tests();
     };
-    // let phys_mem = VirtAddr::new(boot_info.physical_memory_offset);
-    // let l4t = unsafe { active_level_4_page_table(phys_mem) };
-    // unsafe {
-    //     *(l4t[0].addr().as_u64() as *mut [u8; 11]) = *b"Hello world";
-    //     writeln!(WRITER.lock(), "{:#?}", str::from_raw_parts(&*(l4t[0].addr().as_u64() as *const u8), 11)); 
-    // }
-    let mut input_str: [char; 4096] = ['\0'; 4096];
+
+    let mut input_str: Vec<char> = vec![];
     let mut char_no_idx: u8 = 0;
     write!(SHELL_WRITER.lock(), ">");
     loop
@@ -81,55 +101,58 @@ fn k_start(boot_info: &'static BootInfo) -> !
         {
             if LAST_KEY.lock().to_ascii_lowercase() == '\n'
             {
-                match input_str
+                match input_str.as_slice()
                 {
-                    ['g', 'r', 'e', 'e', 't', '\0', '\0', '\0', ..] => 
+                    ['g', 'r', 'e', 'e', 't'] => 
                     {
                         writeln!(SHELL_WRITER.lock(), "Hello.");
                     },
                     ['e', 'c', 'h', 'o', ' ', ..] => 
                     {
-                        for i in 5..4095
+                        for (i, c) in input_str.iter().enumerate()
                         {
-                            if input_str[i] == '\0'
+                            if i >= 5
                             {
-                                break;
+                                write!(SHELL_WRITER.lock(), "{}", c);
                             }
-                            write!(SHELL_WRITER.lock(), "{}", input_str[i]);
                         }
                         writeln!(SHELL_WRITER.lock());
                     },
-                    ['r', 'e', 'b', 'o', 'o', 't', '\0', '\0', '\0', ..] =>
+                    ['e', 'c', 'h', 'o'] => { writeln!(SHELL_WRITER.lock()); },
+                    ['r', 'e', 'b', 'o', 'o', 't'] =>
                     {
                         for _ in 1..VGA_HEIGHT
                         {
                             writeln!(SHELL_WRITER.lock());
                         }
-                        k_start(boot_info);
-                    }
+                        loop { k_start(boot_info); }
+                    },
+                    ['c', 'l', 'e', 'a', 'r'] => 
+                    {
+                        for _ in 1..VGA_HEIGHT
+                        {
+                            writeln!(SHELL_WRITER.lock());
+                        }
+                    },
 
-                    ['\0', ..] => {},
+                    [] => {},
                     _ =>
                     {
                         write!(ERROR_WRITER.lock(), "Unknown shell command, ");
-                        for i in 0..4095
+                        for c in input_str
                         {
-                            if input_str[i] == '\0'
-                            {
-                                break;
-                            }
-                            write!(ERROR_WRITER.lock(), "{}", input_str[i]);
+                            write!(ERROR_WRITER.lock(), "{}", c);
                         }
                         writeln!(ERROR_WRITER.lock());
                     }
                 }
                 *(LAST_KEY.lock()) = '\0';
                 char_no_idx = 0;
-                input_str = ['\0'; 4096];
+                input_str = vec![];
                 write!(SHELL_WRITER.lock(), ">");
                 continue;
             }
-            input_str[char_no_idx as usize] = *(LAST_KEY.lock());
+            input_str.push(*(LAST_KEY.lock()));
             char_no_idx += 1;
             *(LAST_KEY.lock()) = '\0';
             continue;
@@ -142,12 +165,25 @@ fn k_start(boot_info: &'static BootInfo) -> !
 unsafe extern "C" fn run_tests() -> ()
 {
     writeln!(WRITER.lock(), "Tests beginning");
-    unsafe { test(1, cause_exception, "exception_handling"); }
+    unsafe 
+    {
+        test(1, cause_exception, "exception_handling");
+        test(2, test_heap, "heap_allocation");
+    }
 }
 
 unsafe extern "C" fn cause_exception() -> core::result::Result<(), ()>
 {
     x86_64::instructions::interrupts::int3();
+    Ok(())
+}
+
+unsafe extern "C" fn test_heap() -> core::result::Result<(), ()>
+{
+    let n: Box<u8> = Box::new(3 as u8);
+    writeln!(WRITER.lock(), "{}", n);
+    let s: String = String::from("Hello world");
+    writeln!(WRITER.lock(), "{}", s);
     Ok(())
 }
 

@@ -1,3 +1,7 @@
+![Version Number](https://img.shields.io/badge/version-0.1.2-blue)
+![Convenience Update No.](https://img.shields.io/badge/convenience_update-a-red)
+![Full Version Number](https://img.shields.io/badge/full_version_name-0.1.2Da-green)
+
 # Kentos
 
 Kentos is a FOSS OS I'm working on.
@@ -23,4 +27,4 @@ The Kentos docs are [here](https://github.com/theKentoRico/Kentos/blob/main/docs
 
 # License
 
-Kentos is licensed under the BSD-3-Clause license.
+Kentos is licensed under the [BSD-3-Clause license](https://github.com/theKentoRico/Kentos/blob/main/LICENSE).
